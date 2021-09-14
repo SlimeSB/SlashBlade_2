@@ -37,6 +37,7 @@ import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.entity.PartEntity;
 import net.minecraftforge.fml.network.FMLPlayMessages;
 import net.minecraftforge.fml.network.NetworkHooks;
 
@@ -445,6 +446,10 @@ public class EntityAbstractSummonedSword extends ProjectileEntity implements ISh
         blockstate.onProjectileCollision(this.world, blockstate, blockraytraceresult, this);
     }
 
+    public void doForceHitEntity(Entity target){
+        onHitEntity(new EntityRayTraceResult(target));
+    }
+
     protected void onHitEntity(EntityRayTraceResult p_213868_1_) {
         Entity targetEntity = p_213868_1_.getEntity();
         int i = MathHelper.ceil(this.getDamage());
@@ -472,7 +477,11 @@ public class EntityAbstractSummonedSword extends ProjectileEntity implements ISh
         } else {
             damagesource = CustomDamageSource.causeSummonedSwordDamage(this, shooter);
             if (shooter instanceof LivingEntity) {
-                ((LivingEntity)shooter).setLastAttackedEntity(targetEntity);
+                Entity hits = targetEntity;
+                if(targetEntity instanceof PartEntity){
+                    hits = ((PartEntity) targetEntity).getParent();
+                }
+                ((LivingEntity)shooter).setLastAttackedEntity(hits);
             }
         }
 
@@ -488,7 +497,11 @@ public class EntityAbstractSummonedSword extends ProjectileEntity implements ISh
                 StunManager.setStun(targetLivingEntity);
 
                 if (!this.world.isRemote && this.getPierce() <= 0) {
-                    setHitEntity(targetEntity);
+                    Entity hits = targetEntity;
+                    if(targetEntity instanceof PartEntity){
+                        hits = ((PartEntity) targetEntity).getParent();
+                    }
+                    setHitEntity(hits);
                 }
 
                 if (!this.world.isRemote && shooter instanceof LivingEntity) {
@@ -506,7 +519,7 @@ public class EntityAbstractSummonedSword extends ProjectileEntity implements ISh
             }
 
             this.playSound(this.getHitEntitySound(), 1.0F, 1.2F / (this.rand.nextFloat() * 0.2F + 0.9F));
-            if (this.getPierce() <= 0 && !getHitEntity().isAlive()) {
+            if (this.getPierce() <= 0 && (getHitEntity() == null || !getHitEntity().isAlive())) {
                 this.burst();
             }
         } else {

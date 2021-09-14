@@ -6,6 +6,7 @@ import mods.flammpfeil.slashblade.capability.inputstate.IInputState;
 import mods.flammpfeil.slashblade.capability.slashblade.ComboState;
 import mods.flammpfeil.slashblade.capability.slashblade.ISlashBladeState;
 import mods.flammpfeil.slashblade.entity.BladeItemEntity;
+import mods.flammpfeil.slashblade.event.BladeMaterialTooltips;
 import mods.flammpfeil.slashblade.init.SBItems;
 import mods.flammpfeil.slashblade.util.InputCommand;
 import mods.flammpfeil.slashblade.util.NBTHelper;
@@ -28,6 +29,7 @@ import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.nbt.StringNBT;
 import net.minecraft.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.util.*;
 import net.minecraft.util.math.*;
 import net.minecraft.util.math.vector.Vector3d;
@@ -164,6 +166,8 @@ public class ItemSlashBlade extends SwordItem {
         return stateHolder.isPresent();
     }
 
+    static public final String BREAK_ACTION_TIMEOUT = "BreakActionTimeout";
+
     private Consumer<LivingEntity> getOnBroken(ItemStack stack){
         return (user)->{
             user.sendBreakAnimation(user.getActiveHand());
@@ -171,7 +175,7 @@ public class ItemSlashBlade extends SwordItem {
             ItemStack soul = new ItemStack(SBItems.proudsoul);
 
             CompoundNBT blade = stack.write(new CompoundNBT());
-            soul.setTagInfo("BladeData", blade);
+            soul.setTagInfo(BladeMaterialTooltips.BLADE_DATA, blade);
 
             stack.getCapability(BLADESTATE).ifPresent(s->{
                 s.getTexture().ifPresent(r->soul.setTagInfo("Texture", StringNBT.valueOf(r.toString())));
@@ -179,7 +183,29 @@ public class ItemSlashBlade extends SwordItem {
             });
 
             ItemEntity itementity = new ItemEntity(user.world, user.getPosX(), user.getPosY() , user.getPosZ(), soul);
-            BladeItemEntity e = new BladeItemEntity(SlashBlade.RegistryEvents.BladeItem, user.world);
+            BladeItemEntity e = new BladeItemEntity(SlashBlade.RegistryEvents.BladeItem, user.world){
+
+                static final String isReleased = "isReleased";
+                @Override
+                public boolean onLivingFall(float distance, float damageMultiplier) {
+
+                    CompoundNBT tag = this.getPersistentData();
+
+                    if(!tag.getBoolean(isReleased)){
+                        this.getPersistentData().putBoolean(isReleased, true);
+
+                        if(this.world instanceof ServerWorld){
+                            Entity thrower = ((ServerWorld)this.world).getEntityByUuid(this.getThrowerId());
+
+                            if (thrower != null) {
+                                thrower.getPersistentData().remove(BREAK_ACTION_TIMEOUT);
+                            }
+                        }
+                    }
+
+                    return super.onLivingFall(distance, damageMultiplier);
+                }
+            };
 
             e.copyDataFromOld(itementity);
             e.init();
@@ -190,8 +216,18 @@ public class ItemSlashBlade extends SwordItem {
 
             e.setAir(-1);
 
+            e.setThrowerId(user.getUniqueID());
+
             user.world.addEntity(e);
 
+            user.getPersistentData().putLong(BREAK_ACTION_TIMEOUT, user.world.getGameTime() + 20*5);
+
+            stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(state->{
+                if(0 < state.getRefine()){
+                    state.setRefine(state.getRefine() - 1);
+                    state.doBrokenAction(user);
+                }
+            });
         };
     }
 
@@ -294,7 +330,7 @@ public class ItemSlashBlade extends SwordItem {
 
                     stack.setTagInfo("ShareTag", tag);
 
-                    return tag;
+                    return stack.getTag();
                 })
                 .orElseGet(()-> {
 
@@ -317,7 +353,7 @@ public class ItemSlashBlade extends SwordItem {
 
                     stack.getCapability(ItemSlashBlade.BLADESTATE).ifPresent(s->s.setShareTag(tag));
 
-                    return tag;
+                    return stack.getTag();
                 });
 
     }
@@ -476,6 +512,11 @@ public class ItemSlashBlade extends SwordItem {
 
     @Override
     public boolean getIsRepairable(ItemStack toRepair, ItemStack repair) {
+
+        if(ItemTags.STONE_TOOL_MATERIALS.contains(repair.getItem())){
+            return true;
+        }
+
         /*
         Tag<Item> tags = ItemTags.getCollection().get(new ResourceLocation("slashblade","proudsouls"));
 

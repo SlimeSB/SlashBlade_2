@@ -16,6 +16,7 @@ import mods.flammpfeil.slashblade.client.renderer.model.BladeMotionManager;
 import mods.flammpfeil.slashblade.client.renderer.layers.LayerMainBlade;
 import mods.flammpfeil.slashblade.entity.*;
 import mods.flammpfeil.slashblade.event.*;
+import mods.flammpfeil.slashblade.event.client.AdvancementsRecipeRenderer;
 import mods.flammpfeil.slashblade.event.client.SneakingMotionCanceller;
 import mods.flammpfeil.slashblade.event.client.UserPoseOverrider;
 import mods.flammpfeil.slashblade.item.BladeStandItem;
@@ -25,7 +26,6 @@ import mods.flammpfeil.slashblade.init.SBItems;
 import mods.flammpfeil.slashblade.network.NetworkManager;
 import mods.flammpfeil.slashblade.util.TargetSelector;
 import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.model.ModelResourceLocation;
 import net.minecraft.entity.Entity;
@@ -136,6 +136,8 @@ public class SlashBlade
         SlayerStyleArts.getInstance().register();
         Untouchable.getInstance().register();
 
+        PlacePreviewEntryPoint.getInstance().register();
+
         // some preinit code
         //LOGGER.info("HELLO FROM PREINIT");
         //LOGGER.info("DIRT BLOCK >> {}", Blocks.DIRT.getRegistryName());
@@ -153,7 +155,10 @@ public class SlashBlade
         SneakingMotionCanceller.getInstance().register();
         UserPoseOverrider.getInstance().register();
         LockonCircleRender.getInstance().register();
+        BladeComponentTooltips.getInstance().register();
         BladeMaterialTooltips.getInstance().register();
+        AdvancementsRecipeRenderer.getInstance().register();
+
 
         RankRenderer.getInstance().register();
 
@@ -166,6 +171,8 @@ public class SlashBlade
         RenderingRegistry.registerEntityRenderingHandler(RegistryEvents.BladeItem, BladeItemEntityRenderer::new);
         RenderingRegistry.registerEntityRenderingHandler(RegistryEvents.BladeStand, BladeStandEntityRenderer::new);
         RenderingRegistry.registerEntityRenderingHandler(RegistryEvents.SlashEffect, SlashEffectRenderer::new);
+
+        RenderingRegistry.registerEntityRenderingHandler(RegistryEvents.PlacePreview, PlacePreviewEntityRenderer::new);
 
         LOGGER.info("Got game settings {}", event.getMinecraftSupplier().get().gameSettings);
     }
@@ -375,6 +382,20 @@ public class SlashBlade
                 .setCustomClientFactory(EntitySlashEffect::createInstance)
                 .build(SlashEffectLoc.toString());
 
+
+
+
+        public static final ResourceLocation PlacePreviewEntityLoc = new ResourceLocation(SlashBlade.modid, classToString(PlacePreviewEntity.class));
+        public static final EntityType<PlacePreviewEntity> PlacePreview = EntityType.Builder
+                .create(PlacePreviewEntity::new, EntityClassification.MISC)
+                .size(0.5F, 0.5F)
+                .setTrackingRange(10)
+                .setUpdateInterval(20)
+                .setShouldReceiveVelocityUpdates(false)
+                .setCustomClientFactory(PlacePreviewEntity::createInstance)
+                .build(PlacePreviewEntityLoc.toString());
+
+
         @SubscribeEvent
         public static void onEntitiesRegistry(final RegistryEvent.Register<EntityType<?>> event){
             {
@@ -404,6 +425,14 @@ public class SlashBlade
             {
                 EntityType<EntitySlashEffect> entity = SlashEffect;
                 entity.setRegistryName(SlashEffectLoc);
+                event.getRegistry().register(entity);
+            }
+
+
+
+            {
+                EntityType<PlacePreviewEntity> entity = PlacePreview;
+                entity.setRegistryName(PlacePreviewEntityLoc);
                 event.getRegistry().register(entity);
             }
         }

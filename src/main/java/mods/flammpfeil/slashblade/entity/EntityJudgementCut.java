@@ -232,12 +232,14 @@ public class EntityJudgementCut extends ProjectileEntity implements IShootable {
                 jc.setMute(false);
                 jc.setIsCritical(true);
 
-                jc.setDamage(0.5);
+                jc.setDamage(1.0);
 
                 jc.setColor(this.getColor());
                 jc.setBaseSize(0.5f);
 
                 jc.setKnockBack(KnockBacks.cancel);
+
+                jc.setIndirect(true);
 
                 this.world.addEntity(jc);
             }
